@@ -1,0 +1,125 @@
+.panel-header h2 {
+  color: var(--text);
+  margin-top: 0;
+  margin-bottom: 18px;
+  border-bottom: 2px solid var(--accent);
+  padding-bottom: 6px;
+}
+
+.sort-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.sort-controls select {
+  font-size: 1rem;
+  padding: 6px 8px;
+  border: 1px solid var(--panel-border);
+  border-radius: 4px;
+  background: var(--panel-bg);
+  color: var(--text);
+}
+
+.country-card {
+  margin-bottom: 16px;
+  padding: 12px;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 4px;
+}
+
+/* Skeleton placeholder shown while a country's data loads */
+.country-card.skeleton {
+  text-align: left;
+}
+
+.skeleton-line {
+  height: 12px;
+  margin: 10px 0;
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--card-border) 25%, var(--panel-border) 50%, var(--card-border) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.2s ease-in-out infinite;
+}
+
+.skeleton-line.title {
+  height: 18px;
+  width: 50%;
+  margin-bottom: 16px;
+}
+
+@keyframes skeleton-shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
+.country-name {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  border-bottom: 1px solid var(--accent);
+  margin-bottom: 12px;
+  padding-bottom: 6px;
+}
+
+.country-name h3 {
+  color: var(--text);
+  margin: 0;
+  font-size: 1.15em;
+}
+
+.remove-btn {
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 1.3em;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+.remove-btn:hover,
+.remove-btn:focus-visible {
+  color: #c0392b;
+}
+
+.country-detail {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 6px;
+  padding: 3px 0;
+  gap: 8px;
+}
+
+.detail-label {
+  font-weight: bold;
+  color: var(--text);
+}
+
+.country-detail small {
+  color: var(--text-muted);
+  font-weight: normal;
+}
+
+.population-value {
+  color: #2a4d9b;
+  font-weight: 500;
+}
+
+.gdp-value {
+  color: #1d8a3a;
+  font-weight: 500;
+}
+
+:host-context(html.dark-theme) .population-value {
+  color: #8fb3ff;
+}
+
+:host-context(html.dark-theme) .gdp-value {
+  color: #6fcf8a;
+}

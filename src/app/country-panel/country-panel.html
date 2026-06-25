@@ -1,0 +1,74 @@
+<div class="panel-header">
+  <h2>Country Information</h2>
+  @if (countries().length > 1) {
+    <div class="sort-controls">
+      <select (change)="onSortKey($event)">
+        <option value="recent">Most recent</option>
+        <option value="name">Name</option>
+        <option value="population">Population</option>
+        <option value="gdp">GDP per capita</option>
+      </select>
+      <button type="button" class="ghost-btn" (click)="toggleSortDir()" aria-label="Toggle sort direction">
+        {{ sortDesc() ? '↓' : '↑' }}
+      </button>
+    </div>
+  }
+</div>
+
+@if (isLoading()) {
+  <div class="country-card skeleton" aria-hidden="true">
+    <div class="skeleton-line title"></div>
+    <div class="skeleton-line"></div>
+    <div class="skeleton-line"></div>
+    <div class="skeleton-line"></div>
+    <div class="skeleton-line"></div>
+  </div>
+}
+@if (error()) {
+  <p class="status-message error">
+    {{ error() }}
+    <button type="button" class="link-btn" (click)="retry.emit()">Retry</button>
+  </p>
+}
+@if (!isLoading() && !error() && countries().length === 0) {
+  <p class="status-message">Click on a country to get started.</p>
+}
+
+@for (country of sortedCountries(); track country.code) {
+  <div class="country-card">
+    <div class="country-name">
+      <h3>{{ country.name }}</h3>
+      <button
+        type="button"
+        class="remove-btn"
+        (click)="remove.emit(country.code)"
+        [attr.aria-label]="'Remove ' + country.name">×</button>
+    </div>
+    <div>
+      <div class="country-detail">
+        <span class="detail-label">Capital:</span>
+        <span>{{ country.capital }}</span>
+      </div>
+      <div class="country-detail">
+        <span class="detail-label">Region:</span>
+        <span>{{ country.region }}</span>
+      </div>
+      <div class="country-detail">
+        <span class="detail-label">Income Level:</span>
+        <span>{{ country.income }}</span>
+      </div>
+      <div class="country-detail">
+        <span class="detail-label">Population:</span>
+        <span class="population-value">
+          {{ country.pop }}@if (country.popYear) {<small>&nbsp;({{ country.popYear }})</small>}
+        </span>
+      </div>
+      <div class="country-detail">
+        <span class="detail-label">GDP per Capita:</span>
+        <span class="gdp-value">
+          {{ country.gdp }}@if (country.gdpYear) {<small>&nbsp;({{ country.gdpYear }})</small>}
+        </span>
+      </div>
+    </div>
+  </div>
+}

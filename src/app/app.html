@@ -34,139 +34,16 @@
 </div>
 
 <div class="grid-container">
-  <div class="map-container">
-    <div class="map-toolbar">
-      <span class="hint">Scroll to zoom · drag to pan</span>
-      @if (isLoadingMetric) {
-        <span class="status-message">Loading map data…</span>
-      }
-      @if (metricError) {
-        <span class="status-message error">
-          {{ metricError }}
-          <button type="button" class="link-btn" (click)="retryMetric()">Retry</button>
-        </span>
-      }
-      <button type="button" class="ghost-btn" (click)="resetZoom()">Reset zoom</button>
-    </div>
+  <app-world-map
+    [colorMode]="colorMode"
+    [selectedCode]="selectedCode"
+    (countrySelect)="onCountrySelected($event)"
+    (optionsLoaded)="onOptionsLoaded($event)"></app-world-map>
 
-    @if (isLoadingSvg) {
-      <p class="status-message">Loading map…</p>
-    }
-    @if (svgError) {
-      <p class="status-message error">{{ svgError }}</p>
-    }
-
-    <div #worldMap id="worldMap" class="svg-container" role="img" aria-label="Interactive world map"></div>
-
-    @if (choropleth.kind === 'continuous') {
-      <div class="legend">
-        <span class="legend-title">{{ choropleth.label }}</span>
-        <div class="legend-scale">
-          <span>{{ choropleth.min }}</span>
-          <div class="legend-bar" [style.background]="legendGradient"></div>
-          <span>{{ choropleth.max }}</span>
-        </div>
-      </div>
-    }
-    @if (choropleth.kind === 'income') {
-      <div class="legend">
-        <span class="legend-title">{{ choropleth.label }}</span>
-        <div class="legend-items">
-          @for (item of incomeLegend; track item.label) {
-            <span class="legend-item">
-              <i class="swatch" [style.background]="item.color"></i>{{ item.label }}
-            </span>
-          }
-        </div>
-      </div>
-    }
-  </div>
-
-  <div class="all-countries-container">
-    <div class="countries-container">
-      <h2>Country Information</h2>
-      @if (countries.length > 1) {
-        <div class="sort-controls">
-          <select (change)="onSortKey($event)">
-            <option value="recent">Most recent</option>
-            <option value="name">Name</option>
-            <option value="population">Population</option>
-            <option value="gdp">GDP per capita</option>
-          </select>
-          <button type="button" class="ghost-btn" (click)="toggleSortDir()" aria-label="Toggle sort direction">
-            {{ sortDesc ? '↓' : '↑' }}
-          </button>
-        </div>
-      }
-    </div>
-
-    @if (isLoadingData) {
-      <div class="country-card skeleton" aria-hidden="true">
-        <div class="skeleton-line title"></div>
-        <div class="skeleton-line"></div>
-        <div class="skeleton-line"></div>
-        <div class="skeleton-line"></div>
-        <div class="skeleton-line"></div>
-      </div>
-    }
-    @if (dataError) {
-      <p class="status-message error">
-        {{ dataError }}
-        <button type="button" class="link-btn" (click)="retry()">Retry</button>
-      </p>
-    }
-    @if (!isLoadingData && !dataError && countries.length === 0) {
-      <p class="status-message">Click on a country to get started.</p>
-    }
-
-    @for (country of sortedCountries; track country.code) {
-      <div class="country-card">
-        <div class="country-name">
-          <h3>{{ country.name }}</h3>
-          <button
-            type="button"
-            class="remove-btn"
-            (click)="removeCountry(country.code)"
-            [attr.aria-label]="'Remove ' + country.name">×</button>
-        </div>
-        <div>
-          <div class="country-detail">
-            <span class="detail-label">Capital:</span>
-            <span>{{ country.capital }}</span>
-          </div>
-          <div class="country-detail">
-            <span class="detail-label">Region:</span>
-            <span>{{ country.region }}</span>
-          </div>
-          <div class="country-detail">
-            <span class="detail-label">Income Level:</span>
-            <span>{{ country.income }}</span>
-          </div>
-          <div class="country-detail">
-            <span class="detail-label">Population:</span>
-            <span class="population-value">
-              {{ country.pop }}@if (country.popYear) {<small>&nbsp;({{ country.popYear }})</small>}
-            </span>
-          </div>
-          <div class="country-detail">
-            <span class="detail-label">GDP per Capita:</span>
-            <span class="gdp-value">
-              {{ country.gdp }}@if (country.gdpYear) {<small>&nbsp;({{ country.gdpYear }})</small>}
-            </span>
-          </div>
-        </div>
-      </div>
-    }
-  </div>
-</div>
-
-<div
-  class="map-tooltip"
-  [class.visible]="tooltip.visible"
-  [style.left.px]="tooltip.x"
-  [style.top.px]="tooltip.y">
-  <strong>{{ tooltip.name }}</strong>
-  @if (tooltip.detail) {
-    <div class="tooltip-detail">{{ tooltip.detail }}</div>
-  }
+  <app-country-panel
+    [countries]="countries"
+    [isLoading]="isLoadingData"
+    [error]="dataError"
+    (remove)="removeCountry($event)"
+    (retry)="retry()"></app-country-panel>
 </div>

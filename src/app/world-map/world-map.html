@@ -1,0 +1,56 @@
+<div class="map-toolbar">
+  <span class="hint">Scroll to zoom · drag to pan</span>
+  @if (isLoadingMetric) {
+    <span class="status-message">Loading map data…</span>
+  }
+  @if (metricError) {
+    <span class="status-message error">
+      {{ metricError }}
+      <button type="button" class="link-btn" (click)="retryMetric()">Retry</button>
+    </span>
+  }
+  <button type="button" class="ghost-btn" (click)="resetZoom()">Reset zoom</button>
+</div>
+
+@if (isLoadingSvg) {
+  <p class="status-message">Loading map…</p>
+}
+@if (svgError) {
+  <p class="status-message error">{{ svgError }}</p>
+}
+
+<div #worldMap id="worldMap" class="svg-container" role="img" aria-label="Interactive world map"></div>
+
+@if (choropleth.kind === 'continuous') {
+  <div class="legend">
+    <span class="legend-title">{{ choropleth.label }}</span>
+    <div class="legend-scale">
+      <span>{{ choropleth.min }}</span>
+      <div class="legend-bar" [style.background]="legendGradient"></div>
+      <span>{{ choropleth.max }}</span>
+    </div>
+  </div>
+}
+@if (choropleth.kind === 'income') {
+  <div class="legend">
+    <span class="legend-title">{{ choropleth.label }}</span>
+    <div class="legend-items">
+      @for (item of incomeLegend; track item.label) {
+        <span class="legend-item">
+          <i class="swatch" [style.background]="item.color"></i>{{ item.label }}
+        </span>
+      }
+    </div>
+  </div>
+}
+
+<div
+  class="map-tooltip"
+  [class.visible]="tooltip.visible"
+  [style.left.px]="tooltip.x"
+  [style.top.px]="tooltip.y">
+  <strong>{{ tooltip.name }}</strong>
+  @if (tooltip.detail) {
+    <div class="tooltip-detail">{{ tooltip.detail }}</div>
+  }
+</div>

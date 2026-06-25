@@ -1,1 +1,111 @@
-/* You can add global styles to this file, and also import other style files */
+/* Global, document-level styles: theme variables, base layout, shared UI
+   utilities, and rules for the imperatively-injected map SVG (which carries no
+   component scoping attribute, so its styles must live here). */
+
+:root {
+  --bg: #f4f4f4;
+  --panel-bg: #ffffff;
+  --panel-border: #e0e0e0;
+  --text: #333333;
+  --text-muted: #666666;
+  --card-bg: #fafafa;
+  --card-border: #dddddd;
+  --accent: #4a90e2;
+  --country-default: #4a90e2;
+  --country-stroke: #666666;
+  --shadow: rgba(0, 0, 0, 0.08);
+}
+
+html.dark-theme {
+  --bg: #1a1d21;
+  --panel-bg: #24282e;
+  --panel-border: #3a3f46;
+  --text: #e6e6e6;
+  --text-muted: #a0a6ad;
+  --card-bg: #2c3138;
+  --card-border: #3a3f46;
+  --accent: #5a9bf0;
+  --country-default: #3a6ea5;
+  --country-stroke: #20242a;
+  --shadow: rgba(0, 0, 0, 0.4);
+}
+
+html, body {
+  font-family: 'Arial', sans-serif;
+  text-align: center;
+  margin: 15px;
+  background: var(--bg);
+  color: var(--text);
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+/* Injected country shapes. Choropleth sets --country-fill per path; hover and
+   selected are class/pseudo rules that win over the base element rule. */
+svg path {
+  cursor: pointer;
+  transition: fill 0.2s ease, opacity 0.2s ease;
+  fill: var(--country-fill, var(--country-default));
+  stroke: var(--country-stroke);
+  stroke-width: 0.3;
+}
+
+svg path.selected {
+  fill: #e74c3c;
+  stroke: #333333;
+  stroke-width: 1;
+}
+
+svg path:hover {
+  fill: orange;
+  stroke: red;
+  stroke-width: 1.5;
+}
+
+svg path:focus-visible {
+  outline: none;
+  fill: orange;
+  stroke: red;
+  stroke-width: 1.5;
+}
+
+/* Shared UI utilities used across components */
+.ghost-btn {
+  border: 1px solid var(--panel-border);
+  background: var(--panel-bg);
+  color: var(--text);
+  border-radius: 4px;
+  padding: 7px 12px;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.ghost-btn:hover,
+.ghost-btn:focus-visible {
+  border-color: var(--accent);
+}
+
+.status-message {
+  color: var(--text-muted);
+  padding: 14px;
+  margin: 0;
+}
+
+.status-message.error {
+  color: #c0392b;
+}
+
+.link-btn {
+  border: none;
+  background: none;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: inherit;
+  text-decoration: underline;
+  padding: 0 0 0 4px;
+}
+
+@media (max-width: 768px) {
+  html, body {
+    margin: 8px;
+  }
+}

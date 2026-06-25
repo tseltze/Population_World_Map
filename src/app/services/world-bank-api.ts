@@ -24,7 +24,6 @@ export interface MetricPoint {
 export const POP_INDICATOR = 'SP.POP.TOTL';
 export const GDP_INDICATOR = 'NY.GDP.PCAP.CD';
 
-// --- World Bank API response shapes (only the fields we use) ---
 interface WbNamedValue {
   id: string;
   value: string;
