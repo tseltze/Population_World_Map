@@ -41,7 +41,10 @@
         <span class="status-message">Loading map data…</span>
       }
       @if (metricError) {
-        <span class="status-message error">{{ metricError }}</span>
+        <span class="status-message error">
+          {{ metricError }}
+          <button type="button" class="link-btn" (click)="retryMetric()">Retry</button>
+        </span>
       }
       <button type="button" class="ghost-btn" (click)="resetZoom()">Reset zoom</button>
     </div>
@@ -55,19 +58,19 @@
 
     <div #worldMap id="worldMap" class="svg-container" role="img" aria-label="Interactive world map"></div>
 
-    @if (legendType === 'continuous') {
+    @if (choropleth.kind === 'continuous') {
       <div class="legend">
-        <span class="legend-title">{{ legendLabel }}</span>
+        <span class="legend-title">{{ choropleth.label }}</span>
         <div class="legend-scale">
-          <span>{{ legendMin }}</span>
+          <span>{{ choropleth.min }}</span>
           <div class="legend-bar" [style.background]="legendGradient"></div>
-          <span>{{ legendMax }}</span>
+          <span>{{ choropleth.max }}</span>
         </div>
       </div>
     }
-    @if (legendType === 'income') {
+    @if (choropleth.kind === 'income') {
       <div class="legend">
-        <span class="legend-title">{{ legendLabel }}</span>
+        <span class="legend-title">{{ choropleth.label }}</span>
         <div class="legend-items">
           @for (item of incomeLegend; track item.label) {
             <span class="legend-item">
@@ -116,14 +119,14 @@
       <p class="status-message">Click on a country to get started.</p>
     }
 
-    @for (country of sortedCountries; track country.name) {
+    @for (country of sortedCountries; track country.code) {
       <div class="country-card">
         <div class="country-name">
           <h3>{{ country.name }}</h3>
           <button
             type="button"
             class="remove-btn"
-            (click)="removeCountry(country.name)"
+            (click)="removeCountry(country.code)"
             [attr.aria-label]="'Remove ' + country.name">×</button>
         </div>
         <div>

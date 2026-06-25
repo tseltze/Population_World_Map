@@ -60,7 +60,7 @@ const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 1 day
 @Injectable({
   providedIn: 'root'
 })
-export class WdbApi {
+export class WorldBankApi {
   private readonly baseUrl = 'https://api.worldbank.org/v2';
 
   // Promise caches double as in-memory caches and de-duplicate in-flight

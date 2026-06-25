@@ -2,12 +2,12 @@ import { Component, AfterViewInit, ElementRef, OnInit, ViewChild, ViewEncapsulat
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom, retry, timeout } from 'rxjs';
 import {
-  WdbApi,
+  WorldBankApi,
   CountryInfo,
   MetricPoint,
   POP_INDICATOR,
   GDP_INDICATOR,
-} from './services/wdb-api';
+} from './services/world-bank-api';
 import {
   buildLogScale,
   incomeColor,
@@ -16,8 +16,8 @@ import {
   NO_DATA_COLOR,
 } from './services/color-scale';
 import { MapZoomPan } from './map-zoom-pan';
+import { AppStorage, ColorMode } from './app-storage';
 
-type ColorMode = 'none' | 'income' | 'population' | 'gdp';
 type SortKey = 'recent' | 'name' | 'population' | 'gdp';
 
 interface CountryOption {
@@ -33,11 +33,24 @@ interface Tooltip {
   detail: string;
 }
 
-const STORAGE = {
-  countries: 'wm-countries',
-  dark: 'wm-dark',
-  metric: 'wm-metric',
-};
+// The painted map state as a single value: invalid combinations (e.g. a legend
+// with no data) can't be represented.
+type Choropleth =
+  | { kind: 'none' }
+  | {
+      kind: 'continuous';
+      label: string;
+      min: string;
+      max: string;
+      metricType: 'currency' | 'population';
+      data: Map<string, MetricPoint>;
+    }
+  | { kind: 'income'; label: string; data: Map<string, string> };
+
+const PREFETCH_DELAY_MS = 150;
+const SVG_TIMEOUT_MS = 15000;
+const RETRY_DELAY_MS = 500;
+const TOOLTIP_OFFSET_PX = 14;
 
 @Component({
   selector: 'app-root',
@@ -68,14 +81,9 @@ export class App implements OnInit, AfterViewInit {
   colorMode: ColorMode = 'none';
   isLoadingMetric = false;
   metricError = '';
-  legendType: 'none' | 'continuous' | 'income' = 'none';
-  legendMin = '';
-  legendMax = '';
-  legendLabel = '';
+  choropleth: Choropleth = { kind: 'none' };
   readonly legendGradient = rampGradient();
   readonly incomeLegend = INCOME_LEVELS;
-  private activeMetric?: Map<string, MetricPoint>;
-  private activeIncome?: Map<string, string>;
 
   // Search + sort
   countryOptions: CountryOption[] = [];
@@ -93,7 +101,7 @@ export class App implements OnInit, AfterViewInit {
 
   constructor(
     private http: HttpClient,
-    private wdbApi: WdbApi,
+    private worldBank: WorldBankApi,
   ) {}
 
   // Lifecycle
@@ -112,8 +120,8 @@ export class App implements OnInit, AfterViewInit {
     try {
       const svgContent = await firstValueFrom(
         this.http.get('assets/map-image.svg', { responseType: 'text' }).pipe(
-          timeout({ each: 15000 }),
-          retry({ count: 1, delay: 500 }),
+          timeout({ each: SVG_TIMEOUT_MS }),
+          retry({ count: 1, delay: RETRY_DELAY_MS }),
         ),
       );
       this.renderSvg(svgContent);
@@ -198,7 +206,7 @@ export class App implements OnInit, AfterViewInit {
     this.isLoadingData = true;
     this.dataError = '';
     try {
-      const info = await this.wdbApi.getCountryInfo(countryId);
+      const info = await this.worldBank.getCountryInfo(countryId);
       if (info) {
         this.updateCountryList(info);
       } else {
@@ -219,18 +227,18 @@ export class App implements OnInit, AfterViewInit {
   }
 
   private updateCountryList(country: CountryInfo): void {
-    const existingIndex = this.countries.findIndex((c) => c.name === country.name);
+    const existingIndex = this.countries.findIndex((c) => c.code === country.code);
     if (existingIndex >= 0) {
       this.countries[existingIndex] = country;
     } else {
       this.countries.unshift(country);
     }
-    this.persistCountries();
+    AppStorage.setCountries(this.countries);
   }
 
-  removeCountry(name: string): void {
-    this.countries = this.countries.filter((c) => c.name !== name);
-    this.persistCountries();
+  removeCountry(code: string): void {
+    this.countries = this.countries.filter((c) => c.code !== code);
+    AppStorage.setCountries(this.countries);
   }
 
   get sortedCountries(): CountryInfo[] {
@@ -262,7 +270,7 @@ export class App implements OnInit, AfterViewInit {
     const query = input.value.trim().toLowerCase();
     const match = this.countryOptions.find((o) => o.name.toLowerCase() === query);
     if (match) {
-      this.selectCountry(match.id, this.countryOptions.find((o) => o.id === match.id)!.name);
+      this.selectCountry(match.id, match.name);
       input.value = '';
     }
   }
@@ -271,8 +279,12 @@ export class App implements OnInit, AfterViewInit {
   onMetricChange(event: Event): void {
     const mode = (event.target as HTMLSelectElement).value as ColorMode;
     this.colorMode = mode;
-    localStorage.setItem(STORAGE.metric, mode);
+    AppStorage.setMetric(mode);
     this.applyColorMode(mode);
+  }
+
+  retryMetric(): void {
+    this.applyColorMode(this.colorMode);
   }
 
   private async applyColorMode(mode: ColorMode): Promise<void> {
@@ -288,14 +300,10 @@ export class App implements OnInit, AfterViewInit {
     this.metricError = '';
     try {
       if (mode === 'income') {
-        this.activeIncome = await this.wdbApi.getIncomeByCountry();
-        this.activeMetric = undefined;
-        this.paintIncome(this.activeIncome);
+        this.paintIncome(await this.worldBank.getIncomeByCountry());
       } else {
         const indicator = mode === 'population' ? POP_INDICATOR : GDP_INDICATOR;
-        this.activeMetric = await this.wdbApi.getMetricByCountry(indicator);
-        this.activeIncome = undefined;
-        this.paintContinuous(this.activeMetric, mode);
+        this.paintContinuous(await this.worldBank.getMetricByCountry(indicator), mode);
       }
     } catch (error) {
       console.error('Error loading metric data:', error);
@@ -305,17 +313,22 @@ export class App implements OnInit, AfterViewInit {
     }
   }
 
-  private paintContinuous(data: Map<string, MetricPoint>, mode: ColorMode): void {
+  private paintContinuous(data: Map<string, MetricPoint>, mode: 'population' | 'gdp'): void {
     const scale = buildLogScale([...data.values()].map((p) => p.value));
     this.eachPath((path) => {
       const point = data.get(path.id);
       path.style.setProperty('--country-fill', point ? scale.color(point.value) : NO_DATA_COLOR);
     });
 
-    this.legendType = 'continuous';
-    this.legendLabel = mode === 'gdp' ? 'GDP per capita' : 'Population';
-    this.legendMin = this.compact(scale.min, mode);
-    this.legendMax = this.compact(scale.max, mode);
+    const metricType = mode === 'gdp' ? 'currency' : 'population';
+    this.choropleth = {
+      kind: 'continuous',
+      label: mode === 'gdp' ? 'GDP per capita' : 'Population',
+      min: this.compact(scale.min, metricType),
+      max: this.compact(scale.max, metricType),
+      metricType,
+      data,
+    };
   }
 
   private paintIncome(data: Map<string, string>): void {
@@ -323,15 +336,12 @@ export class App implements OnInit, AfterViewInit {
       const level = data.get(path.id);
       path.style.setProperty('--country-fill', level ? incomeColor(level) : NO_DATA_COLOR);
     });
-    this.legendType = 'income';
-    this.legendLabel = 'Income level';
+    this.choropleth = { kind: 'income', label: 'Income level', data };
   }
 
   private clearChoropleth(): void {
     this.eachPath((path) => path.style.removeProperty('--country-fill'));
-    this.legendType = 'none';
-    this.activeMetric = undefined;
-    this.activeIncome = undefined;
+    this.choropleth = { kind: 'none' };
   }
 
   private eachPath(fn: (path: SVGPathElement) => void): void {
@@ -354,8 +364,8 @@ export class App implements OnInit, AfterViewInit {
     }
   };
 
-  // Warm the cache ~150ms after the cursor settles on a country, so a click
-  // usually finds the data already loaded.
+  // Warm the cache after the cursor settles on a country, so a click usually
+  // finds the data already loaded.
   private queuePrefetch(id: string): void {
     if (id === this.hoveredId) {
       return;
@@ -363,8 +373,8 @@ export class App implements OnInit, AfterViewInit {
     this.hoveredId = id;
     this.cancelPrefetch();
     this.prefetchTimer = setTimeout(() => {
-      this.wdbApi.getCountryInfo(id).catch(() => {});
-    }, 150);
+      this.worldBank.getCountryInfo(id).catch(() => {});
+    }, PREFETCH_DELAY_MS);
   }
 
   private cancelPrefetch(): void {
@@ -376,28 +386,24 @@ export class App implements OnInit, AfterViewInit {
     const name = path.getAttribute('name') ?? path.id;
     this.tooltip = {
       visible: true,
-      x: x + 14,
-      y: y + 14,
+      x: x + TOOLTIP_OFFSET_PX,
+      y: y + TOOLTIP_OFFSET_PX,
       name,
       detail: this.tooltipDetail(path.id),
     };
   }
 
   private tooltipDetail(id: string): string {
-    if (this.colorMode === 'income' && this.activeIncome) {
-      return `Income: ${this.activeIncome.get(id) ?? 'No data'}`;
+    const ch = this.choropleth;
+    if (ch.kind === 'income') {
+      return `Income: ${ch.data.get(id) ?? 'No data'}`;
     }
-    if (this.activeMetric) {
-      const point = this.activeMetric.get(id);
-      const label = this.colorMode === 'gdp' ? 'GDP per capita' : 'Population';
+    if (ch.kind === 'continuous') {
+      const point = ch.data.get(id);
       if (!point) {
-        return `${label}: No data`;
+        return `${ch.label}: No data`;
       }
-      const value = this.wdbApi.formatNumber(
-        point.value,
-        this.colorMode === 'gdp' ? 'currency' : 'population',
-      );
-      return `${label}: ${value} (${point.year})`;
+      return `${ch.label}: ${this.worldBank.formatNumber(point.value, ch.metricType)} (${point.year})`;
     }
     return '';
   }
@@ -412,40 +418,20 @@ export class App implements OnInit, AfterViewInit {
   toggleDark(): void {
     this.darkMode = !this.darkMode;
     document.documentElement.classList.toggle('dark-theme', this.darkMode);
-    localStorage.setItem(STORAGE.dark, this.darkMode ? '1' : '0');
+    AppStorage.setDark(this.darkMode);
   }
 
   // Persistence
-  private persistCountries(): void {
-    try {
-      localStorage.setItem(STORAGE.countries, JSON.stringify(this.countries));
-    } catch {
-      // Storage may be unavailable (private mode); ignore.
-    }
-  }
-
   private restoreState(): void {
-    this.darkMode = localStorage.getItem(STORAGE.dark) === '1';
+    this.darkMode = AppStorage.getDark();
     document.documentElement.classList.toggle('dark-theme', this.darkMode);
-
-    const savedMetric = localStorage.getItem(STORAGE.metric) as ColorMode | null;
-    if (savedMetric) {
-      this.colorMode = savedMetric;
-    }
-
-    try {
-      const raw = localStorage.getItem(STORAGE.countries);
-      if (raw) {
-        this.countries = JSON.parse(raw) as CountryInfo[];
-      }
-    } catch {
-      this.countries = [];
-    }
+    this.colorMode = AppStorage.getMetric();
+    this.countries = AppStorage.getCountries();
   }
 
-  private compact(value: number, mode: ColorMode): string {
+  private compact(value: number, metricType: 'currency' | 'population'): string {
     const options: Intl.NumberFormatOptions =
-      mode === 'gdp'
+      metricType === 'currency'
         ? { style: 'currency', currency: 'USD', notation: 'compact', maximumFractionDigits: 1 }
         : { notation: 'compact', maximumFractionDigits: 1 };
     return new Intl.NumberFormat('en-US', options).format(value);
