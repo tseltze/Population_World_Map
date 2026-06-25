@@ -411,7 +411,7 @@ export class App implements OnInit, AfterViewInit {
   // Theme
   toggleDark(): void {
     this.darkMode = !this.darkMode;
-    document.body.classList.toggle('dark-theme', this.darkMode);
+    document.documentElement.classList.toggle('dark-theme', this.darkMode);
     localStorage.setItem(STORAGE.dark, this.darkMode ? '1' : '0');
   }
 
@@ -426,7 +426,7 @@ export class App implements OnInit, AfterViewInit {
 
   private restoreState(): void {
     this.darkMode = localStorage.getItem(STORAGE.dark) === '1';
-    document.body.classList.toggle('dark-theme', this.darkMode);
+    document.documentElement.classList.toggle('dark-theme', this.darkMode);
 
     const savedMetric = localStorage.getItem(STORAGE.metric) as ColorMode | null;
     if (savedMetric) {

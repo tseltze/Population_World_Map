@@ -12,7 +12,7 @@
   --shadow: rgba(0, 0, 0, 0.08);
 }
 
-body.dark-theme {
+html.dark-theme {
   --bg: #1a1d21;
   --panel-bg: #24282e;
   --panel-border: #3a3f46;
@@ -358,11 +358,11 @@ svg path:focus-visible {
   font-weight: 500;
 }
 
-body.dark-theme .population-value {
+html.dark-theme .population-value {
   color: #8fb3ff;
 }
 
-body.dark-theme .gdp-value {
+html.dark-theme .gdp-value {
   color: #6fcf8a;
 }
 
