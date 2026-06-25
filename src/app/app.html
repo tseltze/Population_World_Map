@@ -1,35 +1,122 @@
 <div class="first-container">
   <h1>World Map and Statistics</h1>
   <p>Interactive map showing Income, Population, and GDP per capita data from the World Bank API</p>
+
+  <div class="controls">
+    <label class="control">
+      <span>Color by</span>
+      <select (change)="onMetricChange($event)">
+        <option value="none" [selected]="colorMode === 'none'">None</option>
+        <option value="income" [selected]="colorMode === 'income'">Income level</option>
+        <option value="population" [selected]="colorMode === 'population'">Population</option>
+        <option value="gdp" [selected]="colorMode === 'gdp'">GDP per capita</option>
+      </select>
+    </label>
+
+    <label class="control">
+      <span>Find country</span>
+      <input
+        type="search"
+        list="country-list"
+        placeholder="Type a country name…"
+        (change)="onSearch($event)" />
+      <datalist id="country-list">
+        @for (option of countryOptions; track option.id) {
+          <option [value]="option.name"></option>
+        }
+      </datalist>
+    </label>
+
+    <button type="button" class="ghost-btn" (click)="toggleDark()">
+      {{ darkMode ? '☀ Light mode' : '🌙 Dark mode' }}
+    </button>
+  </div>
 </div>
 
 <div class="grid-container">
   <div class="map-container">
+    <div class="map-toolbar">
+      <span class="hint">Scroll to zoom · drag to pan</span>
+      @if (isLoadingMetric) {
+        <span class="status-message">Loading map data…</span>
+      }
+      @if (metricError) {
+        <span class="status-message error">{{ metricError }}</span>
+      }
+      <button type="button" class="ghost-btn" (click)="resetZoom()">Reset zoom</button>
+    </div>
+
     @if (isLoadingSvg) {
       <p class="status-message">Loading map…</p>
     }
     @if (svgError) {
       <p class="status-message error">{{ svgError }}</p>
     }
+
     <div #worldMap id="worldMap" class="svg-container" role="img" aria-label="Interactive world map"></div>
+
+    @if (legendType === 'continuous') {
+      <div class="legend">
+        <span class="legend-title">{{ legendLabel }}</span>
+        <div class="legend-scale">
+          <span>{{ legendMin }}</span>
+          <div class="legend-bar" [style.background]="legendGradient"></div>
+          <span>{{ legendMax }}</span>
+        </div>
+      </div>
+    }
+    @if (legendType === 'income') {
+      <div class="legend">
+        <span class="legend-title">{{ legendLabel }}</span>
+        <div class="legend-items">
+          @for (item of incomeLegend; track item.label) {
+            <span class="legend-item">
+              <i class="swatch" [style.background]="item.color"></i>{{ item.label }}
+            </span>
+          }
+        </div>
+      </div>
+    }
   </div>
 
   <div class="all-countries-container">
     <div class="countries-container">
       <h2>Country Information</h2>
+      @if (countries.length > 1) {
+        <div class="sort-controls">
+          <select (change)="onSortKey($event)">
+            <option value="recent">Most recent</option>
+            <option value="name">Name</option>
+            <option value="population">Population</option>
+            <option value="gdp">GDP per capita</option>
+          </select>
+          <button type="button" class="ghost-btn" (click)="toggleSortDir()" aria-label="Toggle sort direction">
+            {{ sortDesc ? '↓' : '↑' }}
+          </button>
+        </div>
+      }
     </div>
 
     @if (isLoadingData) {
-      <p class="status-message">Loading country data…</p>
+      <div class="country-card skeleton" aria-hidden="true">
+        <div class="skeleton-line title"></div>
+        <div class="skeleton-line"></div>
+        <div class="skeleton-line"></div>
+        <div class="skeleton-line"></div>
+        <div class="skeleton-line"></div>
+      </div>
     }
     @if (dataError) {
-      <p class="status-message error">{{ dataError }}</p>
+      <p class="status-message error">
+        {{ dataError }}
+        <button type="button" class="link-btn" (click)="retry()">Retry</button>
+      </p>
     }
     @if (!isLoadingData && !dataError && countries.length === 0) {
       <p class="status-message">Click on a country to get started.</p>
     }
 
-    @for (country of countries; track country.name) {
+    @for (country of sortedCountries; track country.name) {
       <div class="country-card">
         <div class="country-name">
           <h3>{{ country.name }}</h3>
@@ -54,14 +141,29 @@
           </div>
           <div class="country-detail">
             <span class="detail-label">Population:</span>
-            <span class="population-value">{{ country.pop }}</span>
+            <span class="population-value">
+              {{ country.pop }}@if (country.popYear) {<small>&nbsp;({{ country.popYear }})</small>}
+            </span>
           </div>
           <div class="country-detail">
             <span class="detail-label">GDP per Capita:</span>
-            <span class="gdp-value">{{ country.gdp }}</span>
+            <span class="gdp-value">
+              {{ country.gdp }}@if (country.gdpYear) {<small>&nbsp;({{ country.gdpYear }})</small>}
+            </span>
           </div>
         </div>
       </div>
     }
   </div>
+</div>
+
+<div
+  class="map-tooltip"
+  [class.visible]="tooltip.visible"
+  [style.left.px]="tooltip.x"
+  [style.top.px]="tooltip.y">
+  <strong>{{ tooltip.name }}</strong>
+  @if (tooltip.detail) {
+    <div class="tooltip-detail">{{ tooltip.detail }}</div>
+  }
 </div>

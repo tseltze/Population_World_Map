@@ -1,26 +1,101 @@
+:root {
+  --bg: #f4f4f4;
+  --panel-bg: #ffffff;
+  --panel-border: #e0e0e0;
+  --text: #333333;
+  --text-muted: #666666;
+  --card-bg: #fafafa;
+  --card-border: #dddddd;
+  --accent: #4a90e2;
+  --country-default: #4a90e2;
+  --country-stroke: #666666;
+  --shadow: rgba(0, 0, 0, 0.08);
+}
+
+body.dark-theme {
+  --bg: #1a1d21;
+  --panel-bg: #24282e;
+  --panel-border: #3a3f46;
+  --text: #e6e6e6;
+  --text-muted: #a0a6ad;
+  --card-bg: #2c3138;
+  --card-border: #3a3f46;
+  --accent: #5a9bf0;
+  --country-default: #3a6ea5;
+  --country-stroke: #20242a;
+  --shadow: rgba(0, 0, 0, 0.4);
+}
+
 html, body {
   font-family: 'Arial', sans-serif;
   text-align: center;
   margin: 15px;
-  background: #f4f4f4;
+  background: var(--bg);
+  color: var(--text);
+  transition: background 0.2s ease, color 0.2s ease;
 }
 
 .first-container {
   text-align: center;
-  margin: 35px;
+  margin: 35px 15px 25px;
 }
 
-.first-container h1{
-  color: #333;
+.first-container h1 {
+  color: var(--text);
   margin-bottom: 12px;
 }
 
 .first-container p {
-  color: #666;
+  color: var(--text-muted);
   font-size: 1.1em;
-  margin-bottom: 25px;
+  margin-bottom: 18px;
 }
 
+/* Controls toolbar */
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 16px;
+}
+
+.control {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  font-size: 0.8em;
+  color: var(--text-muted);
+}
+
+.control select,
+.control input,
+.sort-controls select {
+  font-size: 1rem;
+  padding: 6px 8px;
+  border: 1px solid var(--panel-border);
+  border-radius: 4px;
+  background: var(--panel-bg);
+  color: var(--text);
+}
+
+.ghost-btn {
+  border: 1px solid var(--panel-border);
+  background: var(--panel-bg);
+  color: var(--text);
+  border-radius: 4px;
+  padding: 7px 12px;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.ghost-btn:hover,
+.ghost-btn:focus-visible {
+  border-color: var(--accent);
+}
+
+/* Layout */
 .grid-container {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -29,11 +104,11 @@ html, body {
 }
 
 .map-container, .all-countries-container {
-  background: white;
+  background: var(--panel-bg);
   border-radius: 6px;
   padding: 18px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-  border: 1px solid #e0e0e0;
+  box-shadow: 0 2px 8px var(--shadow);
+  border: 1px solid var(--panel-border);
 }
 
 .map-container {
@@ -45,26 +120,48 @@ html, body {
   text-align: center;
 }
 
+.map-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.map-toolbar .hint {
+  font-size: 0.8em;
+  color: var(--text-muted);
+}
+
 .svg-container {
   width: 100%;
   height: 500px;
+  overflow: hidden;
 }
 
 .svg-container svg {
   width: 100%;
   height: 100%;
   display: block;
-  background: #fff;
-  border: 1px solid #ccc;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
   border-radius: 4px;
 }
 
+/* Country shapes. Choropleth sets --country-fill per path; hover/selected
+   are class/pseudo rules that win over the base element rule. */
 svg path {
   cursor: pointer;
-  transition: all 0.3s ease;
-  fill: #4a90e2;
-  stroke: #666;
+  transition: fill 0.2s ease, opacity 0.2s ease;
+  fill: var(--country-fill, var(--country-default));
+  stroke: var(--country-stroke);
   stroke-width: 0.3;
+}
+
+svg path.selected {
+  fill: #e74c3c;
+  stroke: #333333;
+  stroke-width: 1;
 }
 
 svg path:hover {
@@ -80,14 +177,59 @@ svg path:focus-visible {
   stroke-width: 1.5;
 }
 
-svg path.selected {
-  fill: #e74c3c;
-  stroke: #333;
-  stroke-width: 1;
+/* Legend */
+.legend {
+  margin-top: 12px;
+  text-align: left;
 }
 
+.legend-title {
+  display: block;
+  font-size: 0.85em;
+  font-weight: bold;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.legend-scale {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8em;
+  color: var(--text-muted);
+}
+
+.legend-bar {
+  flex: 1;
+  height: 12px;
+  border-radius: 3px;
+  border: 1px solid var(--panel-border);
+}
+
+.legend-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  font-size: 0.8em;
+  color: var(--text-muted);
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  display: inline-block;
+}
+
+/* Status messages */
 .status-message {
-  color: #666;
+  color: var(--text-muted);
   padding: 14px;
   margin: 0;
 }
@@ -96,20 +238,64 @@ svg path.selected {
   color: #c0392b;
 }
 
+.link-btn {
+  border: none;
+  background: none;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: inherit;
+  text-decoration: underline;
+  padding: 0 0 0 4px;
+}
+
+/* Country cards */
 .countries-container h2 {
-  color: #1a1a1a;
+  color: var(--text);
   margin-top: 0;
   margin-bottom: 18px;
-  border-bottom: 2px solid #4a90e2;
+  border-bottom: 2px solid var(--accent);
   padding-bottom: 6px;
+}
+
+.sort-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 14px;
 }
 
 .country-card {
   margin-bottom: 16px;
   padding: 12px;
-  background: #fafafa;
-  border: 1px solid #ddd;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
   border-radius: 4px;
+}
+
+/* Skeleton placeholder shown while a country's data loads */
+.country-card.skeleton {
+  text-align: left;
+}
+
+.skeleton-line {
+  height: 12px;
+  margin: 10px 0;
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--card-border) 25%, var(--panel-border) 50%, var(--card-border) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.2s ease-in-out infinite;
+}
+
+.skeleton-line.title {
+  height: 18px;
+  width: 50%;
+  margin-bottom: 16px;
+}
+
+@keyframes skeleton-shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
 }
 
 .country-name {
@@ -117,13 +303,13 @@ svg path.selected {
   align-items: flex-start;
   justify-content: space-between;
   gap: 8px;
-  border-bottom: 1px solid #4a90e2;
+  border-bottom: 1px solid var(--accent);
   margin-bottom: 12px;
   padding-bottom: 6px;
 }
 
 .country-name h3 {
-  color: #333;
+  color: var(--text);
   margin: 0;
   font-size: 1.15em;
 }
@@ -132,7 +318,7 @@ svg path.selected {
   flex-shrink: 0;
   border: none;
   background: transparent;
-  color: #999;
+  color: var(--text-muted);
   font-size: 1.3em;
   line-height: 1;
   cursor: pointer;
@@ -154,17 +340,54 @@ svg path.selected {
 
 .detail-label {
   font-weight: bold;
-  color: #3e3a3a;
+  color: var(--text);
+}
+
+.country-detail small {
+  color: var(--text-muted);
+  font-weight: normal;
 }
 
 .population-value {
-  color: darkblue;
+  color: #2a4d9b;
   font-weight: 500;
 }
 
 .gdp-value {
-  color: green;
+  color: #1d8a3a;
   font-weight: 500;
+}
+
+body.dark-theme .population-value {
+  color: #8fb3ff;
+}
+
+body.dark-theme .gdp-value {
+  color: #6fcf8a;
+}
+
+/* Floating map tooltip */
+.map-tooltip {
+  position: fixed;
+  z-index: 100;
+  pointer-events: none;
+  background: rgba(20, 20, 20, 0.92);
+  color: #ffffff;
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 0.85em;
+  max-width: 220px;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+
+.map-tooltip.visible {
+  opacity: 1;
+}
+
+.tooltip-detail {
+  color: #cfd8e3;
+  margin-top: 2px;
 }
 
 /* Stack the map and country panel on narrow screens */
