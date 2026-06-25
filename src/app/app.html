@@ -1,0 +1,67 @@
+<div class="first-container">
+  <h1>World Map and Statistics</h1>
+  <p>Interactive map showing Income, Population, and GDP per capita data from the World Bank API</p>
+</div>
+
+<div class="grid-container">
+  <div class="map-container">
+    @if (isLoadingSvg) {
+      <p class="status-message">Loading map…</p>
+    }
+    @if (svgError) {
+      <p class="status-message error">{{ svgError }}</p>
+    }
+    <div #worldMap id="worldMap" class="svg-container" role="img" aria-label="Interactive world map"></div>
+  </div>
+
+  <div class="all-countries-container">
+    <div class="countries-container">
+      <h2>Country Information</h2>
+    </div>
+
+    @if (isLoadingData) {
+      <p class="status-message">Loading country data…</p>
+    }
+    @if (dataError) {
+      <p class="status-message error">{{ dataError }}</p>
+    }
+    @if (!isLoadingData && !dataError && countries.length === 0) {
+      <p class="status-message">Click on a country to get started.</p>
+    }
+
+    @for (country of countries; track country.name) {
+      <div class="country-card">
+        <div class="country-name">
+          <h3>{{ country.name }}</h3>
+          <button
+            type="button"
+            class="remove-btn"
+            (click)="removeCountry(country.name)"
+            [attr.aria-label]="'Remove ' + country.name">×</button>
+        </div>
+        <div>
+          <div class="country-detail">
+            <span class="detail-label">Capital:</span>
+            <span>{{ country.capital }}</span>
+          </div>
+          <div class="country-detail">
+            <span class="detail-label">Region:</span>
+            <span>{{ country.region }}</span>
+          </div>
+          <div class="country-detail">
+            <span class="detail-label">Income Level:</span>
+            <span>{{ country.income }}</span>
+          </div>
+          <div class="country-detail">
+            <span class="detail-label">Population:</span>
+            <span class="population-value">{{ country.pop }}</span>
+          </div>
+          <div class="country-detail">
+            <span class="detail-label">GDP per Capita:</span>
+            <span class="gdp-value">{{ country.gdp }}</span>
+          </div>
+        </div>
+      </div>
+    }
+  </div>
+</div>

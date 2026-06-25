@@ -1,0 +1,190 @@
+html, body {
+  font-family: 'Arial', sans-serif;
+  text-align: center;
+  margin: 15px;
+  background: #f4f4f4;
+}
+
+.first-container {
+  text-align: center;
+  margin: 35px;
+}
+
+.first-container h1{
+  color: #333;
+  margin-bottom: 12px;
+}
+
+.first-container p {
+  color: #666;
+  font-size: 1.1em;
+  margin-bottom: 25px;
+}
+
+.grid-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 25px;
+  grid-template-areas: "map countries";
+}
+
+.map-container, .all-countries-container {
+  background: white;
+  border-radius: 6px;
+  padding: 18px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  border: 1px solid #e0e0e0;
+}
+
+.map-container {
+  grid-area: map;
+}
+
+.all-countries-container {
+  grid-area: countries;
+  text-align: center;
+}
+
+.svg-container {
+  width: 100%;
+  height: 500px;
+}
+
+.svg-container svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+svg path {
+  cursor: pointer;
+  transition: all 0.3s ease;
+  fill: #4a90e2;
+  stroke: #666;
+  stroke-width: 0.3;
+}
+
+svg path:hover {
+  fill: orange;
+  stroke: red;
+  stroke-width: 1.5;
+}
+
+svg path:focus-visible {
+  outline: none;
+  fill: orange;
+  stroke: red;
+  stroke-width: 1.5;
+}
+
+svg path.selected {
+  fill: #e74c3c;
+  stroke: #333;
+  stroke-width: 1;
+}
+
+.status-message {
+  color: #666;
+  padding: 14px;
+  margin: 0;
+}
+
+.status-message.error {
+  color: #c0392b;
+}
+
+.countries-container h2 {
+  color: #1a1a1a;
+  margin-top: 0;
+  margin-bottom: 18px;
+  border-bottom: 2px solid #4a90e2;
+  padding-bottom: 6px;
+}
+
+.country-card {
+  margin-bottom: 16px;
+  padding: 12px;
+  background: #fafafa;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.country-name {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  border-bottom: 1px solid #4a90e2;
+  margin-bottom: 12px;
+  padding-bottom: 6px;
+}
+
+.country-name h3 {
+  color: #333;
+  margin: 0;
+  font-size: 1.15em;
+}
+
+.remove-btn {
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  color: #999;
+  font-size: 1.3em;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+.remove-btn:hover,
+.remove-btn:focus-visible {
+  color: #c0392b;
+}
+
+.country-detail {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 6px;
+  padding: 3px 0;
+  gap: 8px;
+}
+
+.detail-label {
+  font-weight: bold;
+  color: #3e3a3a;
+}
+
+.population-value {
+  color: darkblue;
+  font-weight: 500;
+}
+
+.gdp-value {
+  color: green;
+  font-weight: 500;
+}
+
+/* Stack the map and country panel on narrow screens */
+@media (max-width: 768px) {
+  html, body {
+    margin: 8px;
+  }
+
+  .first-container {
+    margin: 20px 10px;
+  }
+
+  .grid-container {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "map"
+      "countries";
+  }
+
+  .svg-container {
+    height: 320px;
+  }
+}
