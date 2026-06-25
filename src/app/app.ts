@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { WorldBankApi, CountryInfo } from './services/world-bank-api';
 import { AppStorage, ColorMode } from './app-storage';
 import { ThemeService } from './theme';
@@ -24,12 +24,11 @@ export class App implements OnInit {
   countries: CountryInfo[] = [];
   isLoadingData = false;
   dataError = '';
+  liveMessage = ''; // announced to screen readers via an aria-live region
   private lastSelection?: { id: string; name: string | null };
 
-  constructor(
-    private worldBank: WorldBankApi,
-    private theme: ThemeService,
-  ) {}
+  private readonly worldBank = inject(WorldBankApi);
+  private readonly theme = inject(ThemeService);
 
   ngOnInit(): void {
     this.theme.init();
@@ -85,16 +84,20 @@ export class App implements OnInit {
     const label = name ?? 'this territory';
     this.isLoadingData = true;
     this.dataError = '';
+    this.liveMessage = `Loading data for ${label}.`;
     try {
       const info = await this.worldBank.getCountryInfo(id);
       if (info) {
         this.updateCountryList(info);
+        this.liveMessage = `Showing data for ${info.name}.`;
       } else {
         this.dataError = `No World Bank data is available for ${label}.`;
+        this.liveMessage = this.dataError;
       }
     } catch (error) {
       console.error('Error fetching country data:', error);
       this.dataError = `Could not load data for ${label}. Please try again.`;
+      this.liveMessage = this.dataError;
     } finally {
       this.isLoadingData = false;
     }

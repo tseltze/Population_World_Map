@@ -14,7 +14,7 @@ function rgbToHex(rgb: [number, number, number]): string {
 }
 
 /** Linear interpolation between two hex colors. t is clamped to [0, 1]. */
-export function lerpColor(from: string, to: string, t: number): string {
+function lerpColor(from: string, to: string, t: number): string {
   const a = hexToRgb(from);
   const b = hexToRgb(to);
   const k = Math.min(1, Math.max(0, t));
@@ -31,7 +31,7 @@ export const NO_DATA_COLOR = '#d9d9d9';
 const RAMP_FROM = '#deebf7';
 const RAMP_TO = '#08519c';
 
-export function sequentialColor(t: number): string {
+function sequentialColor(t: number): string {
   return lerpColor(RAMP_FROM, RAMP_TO, t);
 }
 
@@ -67,7 +67,7 @@ export function buildLogScale(values: number[]): LogScale {
 }
 
 // Income-level categorical palette, ordered high -> low.
-export const INCOME_LEVELS: ReadonlyArray<{ label: string; color: string }> = [
+export const INCOME_LEVELS: readonly { label: string; color: string }[] = [
   { label: 'High income', color: '#08519c' },
   { label: 'Upper middle income', color: '#3182bd' },
   { label: 'Lower middle income', color: '#6baed6' },

@@ -6,6 +6,23 @@ country fetches its Income level, Population, and GDP per capita from the
 
 This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 20.0.2.
 
+## Deployment (Netlify)
+
+[`netlify.toml`](netlify.toml) configures the deploy:
+
+- **Build**: `npm run build`, publishing `dist/world-map/browser` on Node 20.
+- **SPA fallback**: unknown paths serve `index.html` (real files are served first).
+- **Caching**: fingerprinted JS/CSS are cached immutably; `index.html` revalidates
+  on every request; the unhashed map SVG is cached for a day.
+- **Security headers**: `X-Content-Type-Options`, `Referrer-Policy`,
+  `Permissions-Policy`, and a strict `Content-Security-Policy`
+  (`script-src 'self'`; `connect-src` limited to the World Bank API).
+
+To keep `script-src` strict, the production build disables Angular's critical-CSS
+inlining (`optimization.styles.inlineCritical: false` in `angular.json`) — it would
+otherwise emit an inline `onload` handler that the CSP blocks. Compression of the
+map SVG is handled automatically by Netlify's CDN.
+
 ## Development server
 
 To start a local development server, run:

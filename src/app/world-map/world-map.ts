@@ -10,15 +10,11 @@ import {
   SimpleChanges,
   ViewChild,
   ViewEncapsulation,
+  inject,
 } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom, retry, timeout } from 'rxjs';
-import {
-  WorldBankApi,
-  MetricPoint,
-  POP_INDICATOR,
-  GDP_INDICATOR,
-} from '../services/world-bank-api';
+import { WorldBankApi, MetricPoint } from '../services/world-bank-api';
 import {
   buildLogScale,
   incomeColor,
@@ -28,6 +24,7 @@ import {
 } from '../services/color-scale';
 import { MapZoomPan } from '../map-zoom-pan';
 import { ColorMode } from '../app-storage';
+import { formatCurrency, formatCount } from '../format';
 
 export interface CountryOption {
   id: string;
@@ -51,7 +48,7 @@ type Choropleth =
       label: string;
       min: string;
       max: string;
-      metricType: 'currency' | 'population';
+      format: (value: number) => string;
       data: Map<string, MetricPoint>;
     }
   | { kind: 'income'; label: string; data: Map<string, string> };
@@ -99,10 +96,8 @@ export class WorldMap implements AfterViewInit, OnChanges, OnDestroy {
   private hoveredId = '';
   private prefetchTimer?: ReturnType<typeof setTimeout>;
 
-  constructor(
-    private http: HttpClient,
-    private worldBank: WorldBankApi,
-  ) {}
+  private readonly http = inject(HttpClient);
+  private readonly worldBank = inject(WorldBankApi);
 
   ngAfterViewInit(): void {
     this.loadSvg();
@@ -174,20 +169,10 @@ export class WorldMap implements AfterViewInit, OnChanges, OnDestroy {
     paths.forEach((path) => {
       const name = path.getAttribute('name');
 
-      // Keyboard accessibility for every country.
-      path.setAttribute('tabindex', '0');
-      path.setAttribute('role', 'button');
-      if (name) {
-        path.setAttribute('aria-label', name);
-      }
-
+      // The map is a mouse affordance. Keyboard and screen-reader users select
+      // countries through the search box, so the 256 paths stay out of the tab
+      // order rather than becoming 256 tab stops.
       path.addEventListener('click', () => this.emitSelect(path.id, name));
-      path.addEventListener('keydown', (event: KeyboardEvent) => {
-        if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault();
-          this.emitSelect(path.id, name);
-        }
-      });
 
       if (name && /^[a-z]{2}$/.test(path.id) && !options.has(path.id)) {
         options.set(path.id, name);
@@ -236,8 +221,7 @@ export class WorldMap implements AfterViewInit, OnChanges, OnDestroy {
       if (mode === 'income') {
         this.paintIncome(await this.worldBank.getIncomeByCountry());
       } else {
-        const indicator = mode === 'population' ? POP_INDICATOR : GDP_INDICATOR;
-        this.paintContinuous(await this.worldBank.getMetricByCountry(indicator), mode);
+        this.paintContinuous(await this.worldBank.getMetric(mode), mode);
       }
     } catch (error) {
       console.error('Error loading metric data:', error);
@@ -247,20 +231,21 @@ export class WorldMap implements AfterViewInit, OnChanges, OnDestroy {
     }
   }
 
-  private paintContinuous(data: Map<string, MetricPoint>, mode: 'population' | 'gdp'): void {
+  private paintContinuous(data: Map<string, MetricPoint>, metric: 'population' | 'gdp'): void {
     const scale = buildLogScale([...data.values()].map((p) => p.value));
     this.eachPath((path) => {
       const point = data.get(path.id);
       path.style.setProperty('--country-fill', point ? scale.color(point.value) : NO_DATA_COLOR);
     });
 
-    const metricType = mode === 'gdp' ? 'currency' : 'population';
+    const isCurrency = metric === 'gdp';
+    const format = isCurrency ? formatCurrency : formatCount;
     this.choropleth = {
       kind: 'continuous',
-      label: mode === 'gdp' ? 'GDP per capita' : 'Population',
-      min: this.compact(scale.min, metricType),
-      max: this.compact(scale.max, metricType),
-      metricType,
+      label: isCurrency ? 'GDP per capita' : 'Population',
+      min: this.compact(scale.min, isCurrency),
+      max: this.compact(scale.max, isCurrency),
+      format,
       data,
     };
   }
@@ -307,7 +292,8 @@ export class WorldMap implements AfterViewInit, OnChanges, OnDestroy {
     this.hoveredId = id;
     this.cancelPrefetch();
     this.prefetchTimer = setTimeout(() => {
-      this.worldBank.getCountryInfo(id).catch(() => {});
+      // Prefetch is best-effort; a failure here just means no warm cache.
+      this.worldBank.getCountryInfo(id).catch(() => undefined);
     }, PREFETCH_DELAY_MS);
   }
 
@@ -337,7 +323,7 @@ export class WorldMap implements AfterViewInit, OnChanges, OnDestroy {
       if (!point) {
         return `${ch.label}: No data`;
       }
-      return `${ch.label}: ${this.worldBank.formatNumber(point.value, ch.metricType)} (${point.year})`;
+      return `${ch.label}: ${ch.format(point.value)} (${point.year})`;
     }
     return '';
   }
@@ -348,11 +334,10 @@ export class WorldMap implements AfterViewInit, OnChanges, OnDestroy {
     }
   }
 
-  private compact(value: number, metricType: 'currency' | 'population'): string {
-    const options: Intl.NumberFormatOptions =
-      metricType === 'currency'
-        ? { style: 'currency', currency: 'USD', notation: 'compact', maximumFractionDigits: 1 }
-        : { notation: 'compact', maximumFractionDigits: 1 };
+  private compact(value: number, isCurrency: boolean): string {
+    const options: Intl.NumberFormatOptions = isCurrency
+      ? { style: 'currency', currency: 'USD', notation: 'compact', maximumFractionDigits: 1 }
+      : { notation: 'compact', maximumFractionDigits: 1 };
     return new Intl.NumberFormat('en-US', options).format(value);
   }
 }

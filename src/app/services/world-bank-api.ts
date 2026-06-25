@@ -1,6 +1,7 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom, retry, timeout } from 'rxjs';
+import { formatCurrency, formatCount } from '../format';
 
 export interface CountryInfo {
   code: string;
@@ -21,8 +22,14 @@ export interface MetricPoint {
   year: string;
 }
 
-export const POP_INDICATOR = 'SP.POP.TOTL';
-export const GDP_INDICATOR = 'NY.GDP.PCAP.CD';
+export type Metric = 'population' | 'gdp';
+
+// World Bank indicator codes are an implementation detail: callers ask for a
+// Metric, not a code.
+const INDICATORS: Record<Metric, string> = {
+  population: 'SP.POP.TOTL',
+  gdp: 'NY.GDP.PCAP.CD',
+};
 
 interface WbNamedValue {
   id: string;
@@ -60,6 +67,7 @@ const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 1 day
   providedIn: 'root'
 })
 export class WorldBankApi {
+  private readonly http = inject(HttpClient);
   private readonly baseUrl = 'https://api.worldbank.org/v2';
 
   // Promise caches double as in-memory caches and de-duplicate in-flight
@@ -67,8 +75,6 @@ export class WorldBankApi {
   private readonly infoCache = new Map<string, Promise<CountryInfo | null>>();
   private readonly metricCache = new Map<string, Promise<Map<string, MetricPoint>>>();
   private incomeCache?: Promise<Map<string, string>>;
-
-  constructor(private http: HttpClient) {}
 
   /**
    * Returns combined World Bank data for a single map country id, or null when
@@ -94,18 +100,23 @@ export class WorldBankApi {
       return resolved;
     }
 
-    const request = this.fetchCountryInfo(code, key);
+    const request = this.fetchCountryInfo(code, key).catch((error) => {
+      this.infoCache.delete(key); // allow a later retry
+      const stale = this.readStale<CountryInfo | null>(`wm-info-${key}`);
+      if (stale) {
+        return stale.data; // prefer stale data over surfacing the error
+      }
+      throw error;
+    });
     this.infoCache.set(key, request);
-    // Drop failed requests so a later retry can re-fetch.
-    request.catch(() => this.infoCache.delete(key));
     return request;
   }
 
   private async fetchCountryInfo(code: string, key: string): Promise<CountryInfo | null> {
     const [basic, population, gdp] = await Promise.all([
       this.fetchCountryBasic(code),
-      this.fetchLatestIndicator(code, POP_INDICATOR),
-      this.fetchLatestIndicator(code, GDP_INDICATOR),
+      this.fetchLatestIndicator(code, INDICATORS.population),
+      this.fetchLatestIndicator(code, INDICATORS.gdp),
     ]);
     const info = this.parseCountryData(key, basic, population, gdp);
     this.writeStore(`wm-info-${key}`, info);
@@ -146,8 +157,8 @@ export class WorldBankApi {
       capital: basic.capitalCity || 'Unknown',
       region: basic.region?.value || 'Unknown',
       income: basic.incomeLevel?.value || 'Unknown',
-      pop: this.formatNumber(population?.value ?? null, 'population'),
-      gdp: this.formatNumber(gdp?.value ?? null, 'currency'),
+      pop: formatCount(population?.value ?? null),
+      gdp: formatCurrency(gdp?.value ?? null),
       popValue: population?.value ?? null,
       gdpValue: gdp?.value ?? null,
       popYear: population?.year ?? null,
@@ -157,8 +168,9 @@ export class WorldBankApi {
 
   // --- Bulk data for the choropleth (one request per metric, then cached) ---
 
-  /** Map of iso2 (lowercase) -> latest metric point for every country. */
-  getMetricByCountry(indicator: string): Promise<Map<string, MetricPoint>> {
+  /** Latest value per country (iso2, lowercase) for a supported metric. */
+  getMetric(metric: Metric): Promise<Map<string, MetricPoint>> {
+    const indicator = INDICATORS[metric];
     const inflight = this.metricCache.get(indicator);
     if (inflight) {
       return inflight;
@@ -171,9 +183,15 @@ export class WorldBankApi {
       return resolved;
     }
 
-    const request = this.fetchMetric(indicator);
+    const request = this.fetchMetric(indicator).catch((error) => {
+      this.metricCache.delete(indicator);
+      const stale = this.readStale<Record<string, MetricPoint>>(`wm-metric-${indicator}`);
+      if (stale) {
+        return new Map(Object.entries(stale.data));
+      }
+      throw error;
+    });
     this.metricCache.set(indicator, request);
-    request.catch(() => this.metricCache.delete(indicator));
     return request;
   }
 
@@ -212,9 +230,15 @@ export class WorldBankApi {
       return this.incomeCache;
     }
 
-    const request = this.fetchIncome();
+    const request = this.fetchIncome().catch((error) => {
+      this.incomeCache = undefined;
+      const stale = this.readStale<Record<string, string>>('wm-income');
+      if (stale) {
+        return new Map(Object.entries(stale.data));
+      }
+      throw error;
+    });
     this.incomeCache = request;
-    request.catch(() => (this.incomeCache = undefined));
     return request;
   }
 
@@ -238,14 +262,6 @@ export class WorldBankApi {
     return map;
   }
 
-  formatNumber(value: number | null, type: 'currency' | 'population'): string {
-    if (value == null) {
-      return 'No data';
-    }
-    const rounded = Math.round(value).toLocaleString();
-    return type === 'currency' ? `$${rounded}` : rounded;
-  }
-
   /** HTTP GET with a request timeout and one retry for transient failures. */
   private get<T>(url: string): Promise<T> {
     return firstValueFrom(
@@ -259,17 +275,19 @@ export class WorldBankApi {
   // --- localStorage cache with a TTL (survives reloads) ---
 
   private readStore<T>(key: string): { data: T } | null {
+    const entry = this.readStale<T>(key);
+    if (!entry) {
+      return null;
+    }
+    // Expired entries are kept on disk as a stale fallback for failed fetches.
+    return Date.now() - entry.ts > CACHE_TTL_MS ? null : { data: entry.data };
+  }
+
+  /** Reads cached data ignoring its age — the fallback when a fetch fails. */
+  private readStale<T>(key: string): (StoreEntry<T>) | null {
     try {
       const raw = localStorage.getItem(key);
-      if (!raw) {
-        return null;
-      }
-      const parsed = JSON.parse(raw) as StoreEntry<T>;
-      if (Date.now() - parsed.ts > CACHE_TTL_MS) {
-        localStorage.removeItem(key);
-        return null;
-      }
-      return { data: parsed.data };
+      return raw ? (JSON.parse(raw) as StoreEntry<T>) : null;
     } catch {
       return null;
     }

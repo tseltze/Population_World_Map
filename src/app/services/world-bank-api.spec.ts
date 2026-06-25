@@ -1,10 +1,14 @@
-import { TestBed } from '@angular/core/testing';
+import { TestBed, fakeAsync, flushMicrotasks, tick } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 
-import { WorldBankApi, POP_INDICATOR, GDP_INDICATOR } from './world-bank-api';
+import { WorldBankApi } from './world-bank-api';
 
-// Minimal World Bank fixtures
+// The World Bank indicator codes are an implementation detail of the service;
+// the tests know them only to assert the outgoing request URLs.
+const POP_CODE = 'SP.POP.TOTL';
+const GDP_CODE = 'NY.GDP.PCAP.CD';
+
 const country = (over: Record<string, unknown> = {}) => ({
   id: 'USA',
   iso2Code: 'US',
@@ -61,8 +65,8 @@ describe('WorldBankApi', () => {
       const promise = service.getCountryInfo('us');
 
       http.expectOne(basicCountry('US')).flush([{}, [country()]]);
-      http.expectOne(indicator(POP_INDICATOR)).flush([{}, [point('US', '2024', 340_000_000)]]);
-      http.expectOne(indicator(GDP_INDICATOR)).flush([{}, [point('US', '2024', 80_000)]]);
+      http.expectOne(indicator(POP_CODE)).flush([{}, [point('US', '2024', 340_000_000)]]);
+      http.expectOne(indicator(GDP_CODE)).flush([{}, [point('US', '2024', 80_000)]]);
 
       const info = await promise;
       expect(info).toEqual(jasmine.objectContaining({
@@ -83,10 +87,10 @@ describe('WorldBankApi', () => {
     it('requests indicators with mrnev=1', async () => {
       const promise = service.getCountryInfo('us');
       http.expectOne(basicCountry('US')).flush([{}, [country()]]);
-      const pop = http.expectOne(indicator(POP_INDICATOR));
+      const pop = http.expectOne(indicator(POP_CODE));
       expect(pop.request.url).toContain('mrnev=1');
       pop.flush([{}, [point('US', '2024', 1)]]);
-      http.expectOne(indicator(GDP_INDICATOR)).flush([{}, [point('US', '2024', 1)]]);
+      http.expectOne(indicator(GDP_CODE)).flush([{}, [point('US', '2024', 1)]]);
       await promise;
     });
 
@@ -94,8 +98,8 @@ describe('WorldBankApi', () => {
       const promise = service.getCountryInfo('eu');
       http.expectOne(basicCountry('EU'))
         .flush([{}, [country({ name: 'European Union', region: { id: 'NA', value: 'Aggregates' } })]]);
-      http.expectOne(indicator(POP_INDICATOR)).flush([{}, []]);
-      http.expectOne(indicator(GDP_INDICATOR)).flush([{}, []]);
+      http.expectOne(indicator(POP_CODE)).flush([{}, []]);
+      http.expectOne(indicator(GDP_CODE)).flush([{}, []]);
       expect(await promise).toBeNull();
     });
 
@@ -103,8 +107,8 @@ describe('WorldBankApi', () => {
       const promise = service.getCountryInfo('br');
       http.expectOne(basicCountry('BR'))
         .flush([{}, [country({ id: 'BRA', iso2Code: 'BR', name: 'Brazil' })]]);
-      http.expectOne(indicator(POP_INDICATOR)).flush([{}, [point('BR', '2024', null)]]);
-      http.expectOne(indicator(GDP_INDICATOR)).flush([{}, null]);
+      http.expectOne(indicator(POP_CODE)).flush([{}, [point('BR', '2024', null)]]);
+      http.expectOne(indicator(GDP_CODE)).flush([{}, null]);
 
       const info = await promise;
       expect(info?.pop).toBe('No data');
@@ -119,8 +123,8 @@ describe('WorldBankApi', () => {
       // If de-dup failed, expectOne below would throw on a second matching request.
       http.expectOne(basicCountry('JP'))
         .flush([{}, [country({ id: 'JPN', iso2Code: 'JP', name: 'Japan' })]]);
-      http.expectOne(indicator(POP_INDICATOR)).flush([{}, [point('JP', '2024', 124)]]);
-      http.expectOne(indicator(GDP_INDICATOR)).flush([{}, [point('JP', '2024', 33)]]);
+      http.expectOne(indicator(POP_CODE)).flush([{}, [point('JP', '2024', 124)]]);
+      http.expectOne(indicator(GDP_CODE)).flush([{}, [point('JP', '2024', 33)]]);
 
       const [a, b] = await Promise.all([p1, p2]);
       expect(a).toBe(b);
@@ -130,8 +134,8 @@ describe('WorldBankApi', () => {
       const promise = service.getCountryInfo('jp');
       http.expectOne(basicCountry('JP'))
         .flush([{}, [country({ id: 'JPN', iso2Code: 'JP', name: 'Japan' })]]);
-      http.expectOne(indicator(POP_INDICATOR)).flush([{}, [point('JP', '2024', 1)]]);
-      http.expectOne(indicator(GDP_INDICATOR)).flush([{}, [point('JP', '2024', 1)]]);
+      http.expectOne(indicator(POP_CODE)).flush([{}, [point('JP', '2024', 1)]]);
+      http.expectOne(indicator(GDP_CODE)).flush([{}, [point('JP', '2024', 1)]]);
       await promise;
 
       const again = await service.getCountryInfo('jp');
@@ -140,10 +144,10 @@ describe('WorldBankApi', () => {
     });
   });
 
-  describe('getMetricByCountry', () => {
-    it('keys the latest values by lowercase iso2 and skips nulls', async () => {
-      const promise = service.getMetricByCountry(GDP_INDICATOR);
-      const req = http.expectOne(hasPath(`/country/all/indicator/${GDP_INDICATOR}`));
+  describe('getMetric', () => {
+    it('maps the metric to the right indicator and keys values by lowercase iso2', async () => {
+      const promise = service.getMetric('gdp');
+      const req = http.expectOne(hasPath(`/country/all/indicator/${GDP_CODE}`));
       expect(req.request.url).toContain('mrnev=1');
       req.flush([{}, [
         point('US', '2024', 80_000),
@@ -156,6 +160,33 @@ describe('WorldBankApi', () => {
       expect(map.has('br')).toBeFalse();
       expect(map.get('jp')?.value).toBe(33_000);
     });
+
+    it('requests the population indicator for the population metric', async () => {
+      const promise = service.getMetric('population');
+      http.expectOne(hasPath(`/country/all/indicator/${POP_CODE}`)).flush([{}, [point('US', '2024', 340)]]);
+      expect((await promise).get('us')?.value).toBe(340);
+    });
+  });
+
+  describe('stale fallback on failure', () => {
+    it('serves expired cached data when the network fails (after the retry)', fakeAsync(() => {
+      // Seed an expired entry (ts = 0).
+      localStorage.setItem(
+        `wm-metric-${GDP_CODE}`,
+        JSON.stringify({ ts: 0, data: { us: { value: 80_000, year: '2024' } } }),
+      );
+
+      let result: Map<string, { value: number; year: string }> | undefined;
+      service.getMetric('gdp').then((map) => (result = map));
+
+      const bulk = hasPath(`/country/all/indicator/${GDP_CODE}`);
+      http.expectOne(bulk).error(new ProgressEvent('error')); // first attempt
+      tick(500); // retry delay
+      http.expectOne(bulk).error(new ProgressEvent('error')); // retry also fails
+      flushMicrotasks();
+
+      expect(result?.get('us')?.value).toBe(80_000);
+    }));
   });
 
   describe('getIncomeByCountry', () => {
@@ -169,14 +200,6 @@ describe('WorldBankApi', () => {
       const map = await promise;
       expect(map.get('us')).toBe('High income');
       expect(map.has('1a')).toBeFalse();
-    });
-  });
-
-  describe('formatNumber', () => {
-    it('formats currency, population and null', () => {
-      expect(service.formatNumber(null, 'currency')).toBe('No data');
-      expect(service.formatNumber(1_234_567, 'currency')).toBe('$1,234,567');
-      expect(service.formatNumber(1_234_567, 'population')).toBe('1,234,567');
     });
   });
 });

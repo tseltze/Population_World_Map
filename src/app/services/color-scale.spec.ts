@@ -1,30 +1,10 @@
-import {
-  lerpColor,
-  buildLogScale,
-  incomeColor,
-  sequentialColor,
-  rampGradient,
-  NO_DATA_COLOR,
-  INCOME_LEVELS,
-} from './color-scale';
+import { buildLogScale, incomeColor, rampGradient, NO_DATA_COLOR, INCOME_LEVELS } from './color-scale';
+
+// The chosen sequential ramp endpoints — the public visual contract.
+const RAMP_START = '#deebf7';
+const RAMP_END = '#08519c';
 
 describe('color-scale', () => {
-  describe('lerpColor', () => {
-    it('returns the endpoints at t=0 and t=1', () => {
-      expect(lerpColor('#000000', '#ffffff', 0)).toBe('#000000');
-      expect(lerpColor('#000000', '#ffffff', 1)).toBe('#ffffff');
-    });
-
-    it('interpolates the midpoint', () => {
-      expect(lerpColor('#000000', '#ffffff', 0.5)).toBe('#808080');
-    });
-
-    it('clamps t outside [0, 1]', () => {
-      expect(lerpColor('#000000', '#ffffff', -1)).toBe('#000000');
-      expect(lerpColor('#000000', '#ffffff', 2)).toBe('#ffffff');
-    });
-  });
-
   describe('buildLogScale', () => {
     it('exposes the raw min and max of the domain', () => {
       const scale = buildLogScale([1000, 10, 100]);
@@ -34,8 +14,15 @@ describe('color-scale', () => {
 
     it('maps the smallest value to the ramp start and the largest to the end', () => {
       const scale = buildLogScale([10, 1000]);
-      expect(scale.color(10)).toBe(sequentialColor(0));
-      expect(scale.color(1000)).toBe(sequentialColor(1));
+      expect(scale.color(10)).toBe(RAMP_START);
+      expect(scale.color(1000)).toBe(RAMP_END);
+    });
+
+    it('places a mid-domain value strictly between the endpoints', () => {
+      const mid = buildLogScale([10, 1000]).color(100);
+      expect(mid).toMatch(/^#[0-9a-f]{6}$/);
+      expect(mid).not.toBe(RAMP_START);
+      expect(mid).not.toBe(RAMP_END);
     });
 
     it('returns the no-data color for null or non-positive values', () => {
@@ -67,8 +54,8 @@ describe('color-scale', () => {
     it('is a linear gradient spanning the ramp endpoints', () => {
       const gradient = rampGradient();
       expect(gradient).toContain('linear-gradient');
-      expect(gradient).toContain(sequentialColor(0));
-      expect(gradient).toContain(sequentialColor(1));
+      expect(gradient).toContain(RAMP_START);
+      expect(gradient).toContain(RAMP_END);
     });
   });
 });
