@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { firstValueFrom, retry, timeout } from 'rxjs';
+import { firstValueFrom, retry, timeout, timer, TimeoutError } from 'rxjs';
 import { formatCurrency, formatCount } from '../format';
 
 export interface CountryInfo {
@@ -62,9 +62,13 @@ interface StoreEntry<T> {
 
 const REQUEST_TIMEOUT_MS = 8000;
 // A timeout usually means the API (or the connection to it) is already under
-// strain, so the retry waits well past the original timeout instead of
-// piling another request on immediately.
-const RETRY_DELAY_MS = 5000;
+// strain, so that retry waits well past the original timeout instead of
+// piling another request on immediately. The World Bank API also
+// intermittently returns a malformed error response for an otherwise-valid
+// request (not a timeout) - that's not a congestion signal, so it gets a
+// quick retry and one extra attempt to ride out the blip.
+const TIMEOUT_RETRY_DELAY_MS = 5000;
+const ERROR_RETRY_DELAY_MS = 500;
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 1 day
 
 @Injectable({
@@ -266,12 +270,16 @@ export class WorldBankApi {
     return map;
   }
 
-  /** HTTP GET with a request timeout and one retry for transient failures. */
+  /** HTTP GET with a request timeout and up to two retries for transient failures. */
   private get<T>(url: string): Promise<T> {
     return firstValueFrom(
       this.http.get<T>(url).pipe(
         timeout({ each: REQUEST_TIMEOUT_MS }),
-        retry({ count: 1, delay: RETRY_DELAY_MS }),
+        retry({
+          count: 2,
+          delay: (error) =>
+            timer(error instanceof TimeoutError ? TIMEOUT_RETRY_DELAY_MS : ERROR_RETRY_DELAY_MS),
+        }),
       ),
     );
   }
