@@ -290,7 +290,7 @@ export class WorldMap implements AfterViewInit, OnChanges, OnDestroy {
       return;
     }
     this.hoveredId = id;
-    this.cancelPrefetch();
+    clearTimeout(this.prefetchTimer);
     this.prefetchTimer = setTimeout(() => {
       // Prefetch is best-effort; a failure here just means no warm cache.
       this.worldBank.getCountryInfo(id).catch(() => undefined);

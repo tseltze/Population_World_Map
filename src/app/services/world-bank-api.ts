@@ -61,6 +61,10 @@ interface StoreEntry<T> {
 }
 
 const REQUEST_TIMEOUT_MS = 8000;
+// A timeout usually means the API (or the connection to it) is already under
+// strain, so the retry waits well past the original timeout instead of
+// piling another request on immediately.
+const RETRY_DELAY_MS = 5000;
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 1 day
 
 @Injectable({
@@ -267,7 +271,7 @@ export class WorldBankApi {
     return firstValueFrom(
       this.http.get<T>(url).pipe(
         timeout({ each: REQUEST_TIMEOUT_MS }),
-        retry({ count: 1, delay: 500 }),
+        retry({ count: 1, delay: RETRY_DELAY_MS }),
       ),
     );
   }

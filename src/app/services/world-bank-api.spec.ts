@@ -181,7 +181,7 @@ describe('WorldBankApi', () => {
 
       const bulk = hasPath(`/country/all/indicator/${GDP_CODE}`);
       http.expectOne(bulk).error(new ProgressEvent('error')); // first attempt
-      tick(500); // retry delay
+      tick(5000); // retry delay
       http.expectOne(bulk).error(new ProgressEvent('error')); // retry also fails
       flushMicrotasks();
 
