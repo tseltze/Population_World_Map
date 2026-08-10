@@ -70,8 +70,8 @@ export class WorldMap implements AfterViewInit, OnChanges, OnDestroy {
   @ViewChild('worldMap', { static: true })
   readonly mapContainer!: ElementRef<HTMLDivElement>;
 
-  @Input() readonly colorMode: ColorMode = 'none';
-  @Input() readonly selectedCode = '';
+  @Input() colorMode: ColorMode = 'none';
+  @Input() selectedCode = '';
 
   @Output() readonly countrySelect = new EventEmitter<{
     id: string;
