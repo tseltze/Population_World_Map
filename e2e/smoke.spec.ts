@@ -7,8 +7,7 @@ test.describe('World Map smoke', () => {
     const us = page.locator('app-world-map svg path#us');
     await expect(us).toBeVisible(); // map SVG rendered
 
-    // The US path is concave (Alaska balloons its bounding box), so a geometric
-    // click can land on a neighbour. Dispatch the event straight to the element.
+    // Alaska balloons its bounding box, so a geometric click can land on a neighbour.
     await us.dispatchEvent('click');
 
     // The selection flows shell → panel (card) and shell → map (highlight).

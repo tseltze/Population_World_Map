@@ -2,14 +2,15 @@
   <h2>Country Information</h2>
   @if (countries().length > 1) {
     <div class="sort-controls">
-      <select (change)="onSortKey($event)">
+      <label for="country-sort-key" class="sr-only">Sort countries by</label>
+      <select id="country-sort-key" (change)="onSortKey($event)">
         <option value="recent">Most recent</option>
         <option value="name">Name</option>
         <option value="population">Population</option>
         <option value="gdp">GDP per capita</option>
       </select>
-      <button type="button" class="ghost-btn" (click)="toggleSortDir()" aria-label="Toggle sort direction">
-        {{ sortDesc() ? '↓' : '↑' }}
+      <button type="button" class="ghost-btn" (click)="toggleSortDir()">
+        Sort {{ sortDesc() ? 'descending ↓' : 'ascending ↑' }}
       </button>
     </div>
   }

@@ -21,11 +21,11 @@ function write(key: string, value: unknown): void {
   try {
     localStorage.setItem(key, JSON.stringify(value));
   } catch {
-    // Storage may be unavailable (private mode / quota); persistence is best-effort.
+    // Storage may be unavailable 
   }
 }
 
-/** Single typed gateway for the UI preferences we persist across reloads. */
+/** Single typed gateway for the UI preferences persist across reloads. */
 export const AppStorage = {
   getCountries: (): CountryInfo[] => read<CountryInfo[]>(KEYS.countries, []),
   setCountries: (countries: CountryInfo[]): void => write(KEYS.countries, countries),

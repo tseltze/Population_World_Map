@@ -78,16 +78,15 @@ export class WorldBankApi {
   private readonly http = inject(HttpClient);
   private readonly baseUrl = 'https://api.worldbank.org/v2';
 
-  // Promise caches double as in-memory caches and de-duplicate in-flight
-  // requests: a pending promise is reused until it resolves.
+  // A pending promise is reused until it resolves.
   private readonly infoCache = new Map<string, Promise<CountryInfo | null>>();
   private readonly metricCache = new Map<string, Promise<Map<string, MetricPoint>>>();
   private incomeCache?: Promise<Map<string, string>>;
 
   /**
    * Returns combined World Bank data for a single map country id, or null when
-   * the id has no matching country (e.g. a composite territory like "um-fq").
-   * Results are de-duplicated and cached (memory + localStorage).
+   * the id has no matching country. Results are de-duplicated and cached 
+   * (memory + localStorage).
    */
   getCountryInfo(countryId: string): Promise<CountryInfo | null> {
     const code = this.getCountryCode(countryId);
@@ -138,7 +137,7 @@ export class WorldBankApi {
   }
 
   /**
-   * Returns the most recent non-empty value for an indicator. `mrnev=1` makes
+   * Returns the most recent non-empty value for an indicator. Makes
    * the API return just that single row, keeping payloads tiny.
    */
   private async fetchLatestIndicator(code: string, indicator: string): Promise<MetricPoint | null> {
@@ -156,7 +155,7 @@ export class WorldBankApi {
   ): CountryInfo | null {
     // The country endpoint returns aggregate/region placeholders for codes that
     // are not real countries; treat those as "no data".
-    if (!basic || !basic.name || basic.region?.value === 'Aggregates') {
+    if (!basic?.name || basic.region?.value === 'Aggregates') {
       return null;
     }
     return {
@@ -314,9 +313,7 @@ export class WorldBankApi {
   }
 
   /**
-   * Maps an SVG path id to a World Bank country code, or null if unsupported.
-   * The map uses ISO 3166-1 alpha-2 ids (which the API accepts) plus composite
-   * territory ids such as "um-fq" that have no country entry.
+   * Maps an SVG path id to a World Bank country code
    */
   private getCountryCode(id: string): string | null {
     const code = id.trim().toUpperCase();

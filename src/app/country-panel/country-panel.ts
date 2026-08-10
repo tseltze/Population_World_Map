@@ -21,7 +21,7 @@ export class CountryPanel {
   readonly sortKey = signal<SortKey>('recent');
   readonly sortDesc = signal(true);
 
-  // Memoised: only recomputes when the inputs or sort signals change.
+  // Only recomputes when the inputs or sort signals change.
   readonly sortedCountries = computed<CountryInfo[]>(() => {
     const arr = [...this.countries()];
     const dir = this.sortDesc() ? -1 : 1;

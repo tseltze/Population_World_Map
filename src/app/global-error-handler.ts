@@ -2,8 +2,7 @@ import { ErrorHandler, Injectable } from '@angular/core';
 
 /**
  * Single capture point for uncaught errors. Logs in every environment and is
- * the one place to forward to an external reporter (Sentry, Rollbar, …) in
- * production — so the rest of the app depends on this seam, not on a vendor.
+ * the one place to forward to an external reporter in production
  */
 @Injectable()
 export class GlobalErrorHandler implements ErrorHandler {
@@ -13,7 +12,7 @@ export class GlobalErrorHandler implements ErrorHandler {
   }
 
   private report(error: unknown): void {
-    // Integration point. Example: Sentry.captureException(error);
-    void error;
+    // Integration point.
+    return;
   }
 }

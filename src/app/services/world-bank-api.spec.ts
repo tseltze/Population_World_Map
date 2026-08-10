@@ -27,7 +27,7 @@ const point = (id: string, date: string, value: number | null) => ({
 });
 
 // The service embeds the query string in the request URL, so requests are
-// matched by a substring of the path (the query is also part of req.url).
+// matched by a substring of the path
 const hasPath = (fragment: string) => (req: { url: string }) => req.url.includes(fragment);
 const basicCountry = (code: string) => hasPath(`/country/${code}?`);
 const indicator = (id: string) => hasPath(`/indicator/${id}`);

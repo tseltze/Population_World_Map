@@ -39,8 +39,7 @@ interface Tooltip {
   detail: string;
 }
 
-// The painted map state as a single value: invalid combinations (e.g. a legend
-// with no data) can't be represented.
+// The painted map state as a single value: invalid combinations can't be represented.
 type Choropleth =
   | { kind: 'none' }
   | {
@@ -64,21 +63,26 @@ const TOOLTIP_OFFSET_PX = 14;
   imports: [],
   templateUrl: './world-map.html',
   styleUrl: './world-map.css',
-  // The SVG is injected imperatively (no scoping attribute), so its styles are
-  // global.
+  // The SVG is injected imperatively, so its styles are global.
   encapsulation: ViewEncapsulation.None,
 })
 export class WorldMap implements AfterViewInit, OnChanges, OnDestroy {
-  @ViewChild('worldMap', { static: true }) mapContainer!: ElementRef<HTMLDivElement>;
+  @ViewChild('worldMap', { static: true })
+  readonly mapContainer!: ElementRef<HTMLDivElement>;
 
-  @Input() colorMode: ColorMode = 'none';
-  @Input() selectedCode = '';
+  @Input() readonly colorMode: ColorMode = 'none';
+  @Input() readonly selectedCode = '';
 
-  @Output() countrySelect = new EventEmitter<{ id: string; name: string | null }>();
-  @Output() optionsLoaded = new EventEmitter<CountryOption[]>();
+  @Output() readonly countrySelect = new EventEmitter<{
+    id: string;
+    name: string | null;
+  }>();
+  @Output() readonly optionsLoaded = new EventEmitter<CountryOption[]>();
 
-  private parsedSvg?: SVGElement;
-  private zoomPan?: MapZoomPan;
+  private readonly state = {
+    parsedSvg: undefined as SVGElement | undefined,
+    zoomPan: undefined as MapZoomPan | undefined,
+  };
   private ready = false;
 
   isLoadingSvg = true;
@@ -86,11 +90,17 @@ export class WorldMap implements AfterViewInit, OnChanges, OnDestroy {
 
   isLoadingMetric = false;
   metricError = '';
-  choropleth: Choropleth = { kind: 'none' };
+  readonly choropleth: Choropleth = { kind: 'none' };
   readonly legendGradient = rampGradient();
   readonly incomeLegend = INCOME_LEVELS;
 
-  tooltip: Tooltip = { visible: false, x: 0, y: 0, name: '', detail: '' };
+  readonly tooltip: Tooltip = {
+    visible: false,
+    x: 0,
+    y: 0,
+    name: '',
+    detail: '',
+  };
 
   // Hover-intent prefetch: warm a country's data before the click.
   private hoveredId = '';
@@ -117,7 +127,7 @@ export class WorldMap implements AfterViewInit, OnChanges, OnDestroy {
 
   ngOnDestroy(): void {
     clearTimeout(this.prefetchTimer);
-    this.zoomPan?.destroy();
+    this.state.zoomPan?.destroy();
     const container = this.mapContainer?.nativeElement;
     container?.removeEventListener('mousemove', this.onMapMouseMove);
     container?.removeEventListener('mouseleave', this.onMapMouseLeave);
@@ -129,10 +139,12 @@ export class WorldMap implements AfterViewInit, OnChanges, OnDestroy {
     this.svgError = '';
     try {
       const svgContent = await firstValueFrom(
-        this.http.get('assets/map-image.svg', { responseType: 'text' }).pipe(
-          timeout({ each: SVG_TIMEOUT_MS }),
-          retry({ count: 1, delay: RETRY_DELAY_MS }),
-        ),
+        this.http
+          .get('assets/map-image.svg', { responseType: 'text' })
+          .pipe(
+            timeout({ each: SVG_TIMEOUT_MS }),
+            retry({ count: 1, delay: RETRY_DELAY_MS }),
+          ),
       );
       this.renderSvg(svgContent);
     } catch (error) {
@@ -149,11 +161,11 @@ export class WorldMap implements AfterViewInit, OnChanges, OnDestroy {
     const doc = new DOMParser().parseFromString(svgContent, 'image/svg+xml');
     const svg = doc.documentElement as unknown as SVGElement;
     container.appendChild(svg);
-    this.parsedSvg = svg;
+    this.state.parsedSvg = svg;
     this.ready = true;
 
     this.setupMap();
-    this.zoomPan = new MapZoomPan(container, svg);
+    this.state.zoomPan = new MapZoomPan(container, svg);
 
     // Apply the inputs that arrived before the SVG existed.
     this.updateSelection();
@@ -163,15 +175,15 @@ export class WorldMap implements AfterViewInit, OnChanges, OnDestroy {
   }
 
   private setupMap(): void {
-    const paths = this.parsedSvg!.querySelectorAll<SVGPathElement>('path');
+    const paths =
+      this.state.parsedSvg!.querySelectorAll<SVGPathElement>('path');
     const options = new Map<string, string>();
 
     paths.forEach((path) => {
       const name = path.getAttribute('name');
 
-      // The map is a mouse affordance. Keyboard and screen-reader users select
-      // countries through the search box, so the 256 paths stay out of the tab
-      // order rather than becoming 256 tab stops.
+      // Keyboard and screen-reader users select countries through the search box,
+      // so the 256 paths stay out of the tab order rather than becoming 256 tab stops.
       path.addEventListener('click', () => this.emitSelect(path.id, name));
 
       if (name && /^[a-z]{2}$/.test(path.id) && !options.has(path.id)) {
@@ -196,7 +208,7 @@ export class WorldMap implements AfterViewInit, OnChanges, OnDestroy {
   }
 
   private updateSelection(): void {
-    this.parsedSvg?.querySelectorAll('path').forEach((path) => {
+    this.state.parsedSvg?.querySelectorAll('path').forEach((path) => {
       path.classList.toggle('selected', path.id === this.selectedCode);
     });
   }
@@ -207,7 +219,7 @@ export class WorldMap implements AfterViewInit, OnChanges, OnDestroy {
   }
 
   private async applyColorMode(mode: ColorMode): Promise<void> {
-    if (!this.parsedSvg) {
+    if (!this.state.parsedSvg) {
       return;
     }
     if (mode === 'none') {
@@ -231,44 +243,57 @@ export class WorldMap implements AfterViewInit, OnChanges, OnDestroy {
     }
   }
 
-  private paintContinuous(data: Map<string, MetricPoint>, metric: 'population' | 'gdp'): void {
+  private paintContinuous(
+    data: Map<string, MetricPoint>,
+    metric: 'population' | 'gdp',
+  ): void {
     const scale = buildLogScale([...data.values()].map((p) => p.value));
     this.eachPath((path) => {
       const point = data.get(path.id);
-      path.style.setProperty('--country-fill', point ? scale.color(point.value) : NO_DATA_COLOR);
+      path.style.setProperty(
+        '--country-fill',
+        point ? scale.color(point.value) : NO_DATA_COLOR,
+      );
     });
 
     const isCurrency = metric === 'gdp';
     const format = isCurrency ? formatCurrency : formatCount;
-    this.choropleth = {
+    Object.assign(this.choropleth, {
       kind: 'continuous',
       label: isCurrency ? 'GDP per capita' : 'Population',
       min: this.compact(scale.min, isCurrency),
       max: this.compact(scale.max, isCurrency),
       format,
       data,
-    };
+    });
   }
 
   private paintIncome(data: Map<string, string>): void {
     this.eachPath((path) => {
       const level = data.get(path.id);
-      path.style.setProperty('--country-fill', level ? incomeColor(level) : NO_DATA_COLOR);
+      path.style.setProperty(
+        '--country-fill',
+        level ? incomeColor(level) : NO_DATA_COLOR,
+      );
     });
-    this.choropleth = { kind: 'income', label: 'Income level', data };
+    Object.assign(this.choropleth, {
+      kind: 'income',
+      label: 'Income level',
+      data,
+    });
   }
 
   private clearChoropleth(): void {
     this.eachPath((path) => path.style.removeProperty('--country-fill'));
-    this.choropleth = { kind: 'none' };
+    Object.assign(this.choropleth, { kind: 'none' });
   }
 
   private eachPath(fn: (path: SVGPathElement) => void): void {
-    this.parsedSvg?.querySelectorAll<SVGPathElement>('path').forEach(fn);
+    this.state.parsedSvg?.querySelectorAll<SVGPathElement>('path').forEach(fn);
   }
 
   resetZoom(): void {
-    this.zoomPan?.reset();
+    this.state.zoomPan?.reset();
   }
 
   // Tooltip + hover prefetch
@@ -276,7 +301,7 @@ export class WorldMap implements AfterViewInit, OnChanges, OnDestroy {
 
   private onMapMouseMove = (event: MouseEvent): void => {
     const target = event.target as Element;
-    if (target && target.tagName === 'path' && target.id) {
+    if (target?.tagName === 'path' && target.id) {
       this.showTooltip(target as SVGPathElement, event.clientX, event.clientY);
       this.queuePrefetch(target.id);
     } else {
@@ -304,13 +329,13 @@ export class WorldMap implements AfterViewInit, OnChanges, OnDestroy {
 
   private showTooltip(path: SVGPathElement, x: number, y: number): void {
     const name = path.getAttribute('name') ?? path.id;
-    this.tooltip = {
+    Object.assign(this.tooltip, {
       visible: true,
       x: x + TOOLTIP_OFFSET_PX,
       y: y + TOOLTIP_OFFSET_PX,
       name,
       detail: this.tooltipDetail(path.id),
-    };
+    });
   }
 
   private tooltipDetail(id: string): string {
@@ -330,13 +355,18 @@ export class WorldMap implements AfterViewInit, OnChanges, OnDestroy {
 
   private hideTooltip(): void {
     if (this.tooltip.visible) {
-      this.tooltip = { ...this.tooltip, visible: false };
+      this.tooltip.visible = false;
     }
   }
 
   private compact(value: number, isCurrency: boolean): string {
     const options: Intl.NumberFormatOptions = isCurrency
-      ? { style: 'currency', currency: 'USD', notation: 'compact', maximumFractionDigits: 1 }
+      ? {
+          style: 'currency',
+          currency: 'USD',
+          notation: 'compact',
+          maximumFractionDigits: 1,
+        }
       : { notation: 'compact', maximumFractionDigits: 1 };
     return new Intl.NumberFormat('en-US', options).format(value);
   }

@@ -3,9 +3,9 @@
 function hexToRgb(hex: string): [number, number, number] {
   const v = hex.replace('#', '');
   return [
-    parseInt(v.slice(0, 2), 16),
-    parseInt(v.slice(2, 4), 16),
-    parseInt(v.slice(4, 6), 16),
+    Number.parseInt(v.slice(0, 2), 16),
+    Number.parseInt(v.slice(2, 4), 16),
+    Number.parseInt(v.slice(4, 6), 16),
   ];
 }
 

@@ -1,7 +1,3 @@
-/* Global, document-level styles: theme variables, base layout, shared UI
-   utilities, and rules for the imperatively-injected map SVG (which carries no
-   component scoping attribute, so its styles must live here). */
-
 :root {
   --bg: #f4f4f4;
   --panel-bg: #ffffff;

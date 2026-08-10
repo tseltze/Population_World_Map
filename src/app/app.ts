@@ -5,10 +5,6 @@ import { ThemeService } from './theme';
 import { WorldMap, CountryOption } from './world-map/world-map';
 import { CountryPanel } from './country-panel/country-panel';
 
-/**
- * Shell container: owns app-level state and orchestration, and composes the
- * map and country-panel presentational components.
- */
 @Component({
   selector: 'app-root',
   standalone: true,
@@ -80,23 +76,22 @@ export class App implements OnInit {
     this.theme.toggle();
   }
 
-  private async loadInfo(id: string, name: string | null): Promise<void> {
-    const label = name ?? 'this territory';
+  private async loadInfo(id: string, name: string | null = 'this territory'): Promise<void> {
     this.isLoadingData = true;
     this.dataError = '';
-    this.liveMessage = `Loading data for ${label}.`;
+    this.liveMessage = `Loading data for ${name ?? 'this territory'}.`;
     try {
       const info = await this.worldBank.getCountryInfo(id);
       if (info) {
         this.updateCountryList(info);
         this.liveMessage = `Showing data for ${info.name}.`;
       } else {
-        this.dataError = `No World Bank data is available for ${label}.`;
+        this.dataError = `No World Bank data is available for ${name ?? 'this territory'}.`;
         this.liveMessage = this.dataError;
       }
     } catch (error) {
       console.error('Error fetching country data:', error);
-      this.dataError = `Could not load data for ${label}. Please try again.`;
+      this.dataError = `Could not load data for ${name ?? 'this territory'}. Please try again.`;
       this.liveMessage = this.dataError;
     } finally {
       this.isLoadingData = false;

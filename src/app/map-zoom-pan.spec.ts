@@ -12,7 +12,6 @@ describe('MapZoomPan', () => {
 
   beforeEach(() => {
     container = document.createElement('div');
-    // jsdom/headless gives a zero rect; provide a stable one for the zoom math.
     spyOn(container, 'getBoundingClientRect').and.returnValue({
       left: 0, top: 0, width: 200, height: 100, right: 200, bottom: 100, x: 0, y: 0, toJSON: () => ({}),
     } as DOMRect);
@@ -52,7 +51,6 @@ describe('MapZoomPan', () => {
   it('destroy detaches window listeners so later pointer events are harmless', () => {
     zoomPan.destroy();
     expect(() => window.dispatchEvent(new PointerEvent('pointermove', { clientX: 5, clientY: 5 }))).not.toThrow();
-    // A second destroy must be safe too.
     expect(() => zoomPan.destroy()).not.toThrow();
   });
 });
