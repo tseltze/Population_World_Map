@@ -8,10 +8,10 @@ import { ErrorHandler, Injectable } from '@angular/core';
 export class GlobalErrorHandler implements ErrorHandler {
   handleError(error: unknown): void {
     console.error('[unhandled]', error);
-    this.report(error);
+    this.report();
   }
 
-  private report(error: unknown): void {
+  private report(): void {
     // Integration point.
     return;
   }
