@@ -18,7 +18,9 @@ describe('WorldMap', () => {
   it('ngOnDestroy disposes the zoom/pan controller and does not throw', () => {
     const component = TestBed.createComponent(WorldMap).componentInstance;
     const destroy = jasmine.createSpy('destroy');
-    (component as unknown as { zoomPan: { destroy: () => void } }).zoomPan = { destroy };
+    (component as unknown as { state: { zoomPan: { destroy: () => void } } }).state.zoomPan = {
+      destroy,
+    };
 
     expect(() => component.ngOnDestroy()).not.toThrow();
     expect(destroy).toHaveBeenCalledTimes(1);

@@ -26,6 +26,7 @@ export class MapZoomPan {
     private readonly container: HTMLElement,
     private readonly target: SVGElement,
   ) {
+    this.container.style.cursor = 'grab';
     this.container.addEventListener('wheel', this.onWheel, { passive: false });
     this.container.addEventListener('pointerdown', this.onPointerDown);
     window.addEventListener('pointermove', this.onPointerMove);
